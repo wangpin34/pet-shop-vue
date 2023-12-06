@@ -1,6 +1,6 @@
 # Pet Shop
 
-The sample project https://trufflesuite.com/guides/pet-shop/ makes a great job, however, there are still a couple of points could be improved. e.g. small app.js, typescript, etc.
+The sample project https://trufflesuite.com/guides/pet-shop/ makes a great job, however, there are still several points could be improved. e.g. small app.js, typescript, etc.
 
 I rewrite the sample for me and others who like to try the development of dapp. This app shows out the following features:
 
