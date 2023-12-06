@@ -1,63 +1,76 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import { Web3 } from "web3";
-import HelloWorld from './components/HelloWorld.vue';
+import type { Adoptions } from 'types/adoption';
+import type { Pet } from 'types/pet';
+import { computed, onMounted, ref } from 'vue';
+import PetGrid from './components/Pet.vue';
+import { contract, web3 } from './contract/adoption';
+import { accountStore } from './store/web3';
 
+const _pets = ref<Pet[]>([])
+const adoptions = ref<Adoptions>([])
+const pets = computed(() => {
+  return _pets.value.map((pet, index) => {
+    const adopted = adoptions.value[index] !== '0x0000000000000000000000000000000000000000'
+    if (adopted) {
+      return {
+        ...pet,
+        adopted: true
+      }
+    }
+    return pet
+  })
+})
 
-// async function withTruffle() {
-//   const provider = new Web3.providers.HttpProvider("http://localhost:7545");
-//   // set a provider in the sepolia testnet using node rpc url
-//   const adoptionArtifact = await fetch('/Adoption.json').then(resp => resp.json())
-//   console.log(adoptionArtifact)
-//   const contract = Contract(adoptionArtifact)
-//   contract.setProvider(provider)
-//   const instance = await contract.deployed()
-//   const adopters = await instance.getAdopters()
-//   console.log(adopters)
-// }
+let account: string
 
-async function withWeb3() {
-  // set a provider in the sepolia testnet using node rpc url
-  const adoptionArtifact = await fetch('/Adoption.json').then(resp => resp.json())
-  console.log(adoptionArtifact)
-  const web3 = new Web3("http://localhost:7545")
-  const abi = adoptionArtifact.abi
-  const addressOfContract = ""
-  const contract = new web3.eth.Contract(abi, addressOfContract)
-  // using contract.methods to get value
-  contract.methods
-    .getAdopters()
-    .call()
-    .then(console.log);
-
+const signIn = async () => {
   const providersAccounts = await web3.eth.getAccounts()
-  const defaultAccount = providersAccounts[0]
-  console.log(`defaultAccount: ${defaultAccount}`)
-  // contract.methods
-  //   .adopt(0)
-  //   .send({ from: defaultAccount, gas: 1000000,
-  //     gasPrice: 10000000000, })
-  //   .then(console.log)
+  accountStore.value = providersAccounts[0]
 }
 
+async function loadAdoptions() {
+  const resp = await contract.methods.getAdopters().call()
+  adoptions.value = resp as string[]
+}
+
+async function handleAdopt(pet: Pet) {
+  console.log(`try to adopt`, pet)
+  const petId = pet.id
+  contract.methods
+  .adopt(petId)
+  .send({ from: account, gas: '1000000', gasPrice: '10000000000' })
+  .then(loadAdoptions)
+  .catch(err => {
+    console.error(err)
+  })
+}
+
+const loadPets = async () => {
+  try {
+    const resp = await fetch('/pets.json')
+    const pets = await resp.json()
+    _pets.value = pets
+  } catch(err) {
+    console.error(err)
+  }
+}  
+
 onMounted(() => {
-  // withTruffle()
-  withWeb3()
-  console.log(`the component is now mounted.`)
+  signIn()
+  loadAdoptions()
+  loadPets()
 })
 
 </script>
 
 <template>
   <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
+    <div id="pets">
+      <template v-for="pet in pets">
+        <PetGrid :pet="pet" :onAdopt="handleAdopt" />
+      </template>
+    </div>
   </div>
-  <HelloWorld msg="Vite + Vue" />
 </template>
 
 <style scoped>
